@@ -25,6 +25,7 @@ const supportRoutes = require('./routes/support.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const customerRoutes = require('./routes/customer.routes');
 const bannerRoutes = require('./routes/banner.routes');
+const uploadRoutes = require('./routes/upload.routes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -63,6 +64,7 @@ app.use('/api/support', supportRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/customer', customerRoutes);
 app.use('/api/banners', bannerRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Error handler
 app.use(errorHandler);
