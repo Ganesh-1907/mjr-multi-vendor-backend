@@ -29,7 +29,11 @@ async function uploadFile(file) {
     ACL: 'public-read',
   }));
 
-  const url = `${process.env.R2_ENDPOINT}/${BUCKET}/${key}`;
+  const publicUrl = process.env.R2_PUBLIC_URL;
+  const baseUrl = process.env.API_BASE_URL || 'http://localhost:5000';
+  const url = publicUrl 
+    ? `${publicUrl}/${key}`
+    : `${baseUrl}/api/upload/file/${key}`;
   return url;
 }
 
@@ -41,4 +45,13 @@ async function deleteFile(url) {
   }));
 }
 
-module.exports = { uploadFile, deleteFile };
+async function getFile(key) {
+  const { GetObjectCommand } = require('@aws-sdk/client-s3');
+  const response = await s3Client.send(new GetObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+  }));
+  return response;
+}
+
+module.exports = { uploadFile, deleteFile, getFile };

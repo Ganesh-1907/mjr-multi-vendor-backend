@@ -38,11 +38,26 @@ const getProducts = async (filters = {}) => {
     minRating,
   } = filters;
 
+  const pageNum = parseInt(page) > 0 ? parseInt(page) : 1;
+  const skip = (pageNum - 1) * parseInt(size);
+  const limit = parseInt(size);
+
   const query = { status: 'APPROVED' };
 
-  if (category) query.category = category;
+  if (category) {
+    const Category = require('../models/Category');
+    const catDoc = await Category.findOne({ slug: category });
+    if (catDoc) {
+      query.category = catDoc._id;
+    } else {
+      // If category slug not found, return empty result
+      return { products: [], total: 0, page: pageNum, totalPages: 0 };
+    }
+  }
+
   if (vendorId) query.vendor = vendorId;
   if (minRating) query.rating = { $gte: parseFloat(minRating) };
+
   if (search) {
     query.$or = [
       { name: { $regex: search, $options: 'i' } },
@@ -62,9 +77,6 @@ const getProducts = async (filters = {}) => {
     case 'featured': sortQuery = { isFeatured: -1, createdAt: -1 }; break;
     default: sortQuery = { createdAt: -1 };
   }
-
-  const skip = (parseInt(page) - 1) * parseInt(size);
-  const limit = parseInt(size);
 
   // For price filtering, we need to look up variants
   let productIds = null;
@@ -100,27 +112,32 @@ const getProducts = async (filters = {}) => {
   const firstVariants = await ProductVariant.aggregate([
     { $match: { product: { $in: productIds_arr } } },
     { $sort: { price: 1 } },
-    { $group: { _id: '$product', price: { $first: '$price' }, comparePrice: { $first: '$comparePrice' }, stockQuantity: { $first: '$stockQuantity' } } },
+    { $group: { _id: '$product', price: { $first: '$price' }, comparePrice: { $first: '$comparePrice' }, stockQuantity: { $first: '$stockQuantity' }, variantId: { $first: '$_id' } } },
   ]);
 
   const imageMap = {};
   primaryImages.forEach((img) => { imageMap[img.product.toString()] = img.url; });
 
   const variantMap = {};
-  firstVariants.forEach((v) => { variantMap[v._id.toString()] = { price: v.price, comparePrice: v.comparePrice, stockQuantity: v.stockQuantity }; });
+  firstVariants.forEach((v) => { variantMap[v._id.toString()] = { price: v.price, comparePrice: v.comparePrice, stockQuantity: v.stockQuantity, id: v.variantId }; });
 
-  const productList = products.map((p) => ({
-    ...p,
-    image: imageMap[p._id.toString()] || null,
-    price: variantMap[p._id.toString()]?.price || 0,
-    comparePrice: variantMap[p._id.toString()]?.comparePrice || null,
-    stockQuantity: variantMap[p._id.toString()]?.stockQuantity || 0,
-  }));
+  const productList = products.map((p) => {
+    const v = variantMap[p._id.toString()];
+    return {
+      ...p,
+      id: p._id,
+      primaryImageUrl: imageMap[p._id.toString()] || null,
+      primaryVariantPrice: v?.price || 0,
+      primaryVariantComparePrice: v?.comparePrice || null,
+      primaryVariantId: v?.id || null,
+      stockQuantity: v?.stockQuantity || 0,
+    };
+  });
 
   return {
     products: productList,
     total,
-    page: parseInt(page),
+    page: pageNum,
     totalPages: Math.ceil(total / limit),
   };
 };
@@ -141,21 +158,26 @@ const getTrendingProducts = async () => {
   const firstVariants = await ProductVariant.aggregate([
     { $match: { product: { $in: productIds } } },
     { $sort: { price: 1 } },
-    { $group: { _id: '$product', price: { $first: '$price' }, comparePrice: { $first: '$comparePrice' }, stockQuantity: { $first: '$stockQuantity' } } },
+    { $group: { _id: '$product', price: { $first: '$price' }, comparePrice: { $first: '$comparePrice' }, stockQuantity: { $first: '$stockQuantity' }, variantId: { $first: '$_id' } } },
   ]);
 
   const imageMap = {};
   primaryImages.forEach((img) => { imageMap[img.product.toString()] = img.url; });
   const variantMap = {};
-  firstVariants.forEach((v) => { variantMap[v._id.toString()] = { price: v.price, comparePrice: v.comparePrice, stockQuantity: v.stockQuantity }; });
+  firstVariants.forEach((v) => { variantMap[v._id.toString()] = { price: v.price, comparePrice: v.comparePrice, stockQuantity: v.stockQuantity, id: v.variantId }; });
 
-  return products.map((p) => ({
-    ...p,
-    image: imageMap[p._id.toString()] || null,
-    price: variantMap[p._id.toString()]?.price || 0,
-    comparePrice: variantMap[p._id.toString()]?.comparePrice || null,
-    stockQuantity: variantMap[p._id.toString()]?.stockQuantity || 0,
-  }));
+  return products.map((p) => {
+    const v = variantMap[p._id.toString()];
+    return {
+      ...p,
+      id: p._id,
+      primaryImageUrl: imageMap[p._id.toString()] || null,
+      primaryVariantPrice: v?.price || 0,
+      primaryVariantComparePrice: v?.comparePrice || null,
+      primaryVariantId: v?.id || null,
+      stockQuantity: v?.stockQuantity || 0,
+    };
+  });
 };
 
 const getRelatedProducts = async (productId, limit = 4) => {
@@ -176,20 +198,25 @@ const getRelatedProducts = async (productId, limit = 4) => {
   const firstVariants = await ProductVariant.aggregate([
     { $match: { product: { $in: productIds } } },
     { $sort: { price: 1 } },
-    { $group: { _id: '$product', price: { $first: '$price' }, comparePrice: { $first: '$comparePrice' } } },
+    { $group: { _id: '$product', price: { $first: '$price' }, comparePrice: { $first: '$comparePrice' }, variantId: { $first: '$_id' } } },
   ]);
 
   const imageMap = {};
   primaryImages.forEach((img) => { imageMap[img.product.toString()] = img.url; });
   const variantMap = {};
-  firstVariants.forEach((v) => { variantMap[v._id.toString()] = { price: v.price, comparePrice: v.comparePrice }; });
+  firstVariants.forEach((v) => { variantMap[v._id.toString()] = { price: v.price, comparePrice: v.comparePrice, id: v.variantId }; });
 
-  return related.map((p) => ({
-    ...p,
-    image: imageMap[p._id.toString()] || null,
-    price: variantMap[p._id.toString()]?.price || 0,
-    comparePrice: variantMap[p._id.toString()]?.comparePrice || null,
-  }));
+  return related.map((p) => {
+    const v = variantMap[p._id.toString()];
+    return {
+      ...p,
+      id: p._id,
+      primaryImageUrl: imageMap[p._id.toString()] || null,
+      primaryVariantPrice: v?.price || 0,
+      primaryVariantComparePrice: v?.comparePrice || null,
+      primaryVariantId: v?.id || null,
+    };
+  });
 };
 
 const createProduct = async (vendorUserId, request) => {
@@ -332,17 +359,65 @@ const rejectProduct = async (productId) => {
 };
 
 const getPendingProducts = async () => {
-  return Product.find({ status: 'PENDING' })
-    .populate('vendor', 'storeName storeSlug')
-    .populate('category', 'name slug')
-    .sort({ createdAt: -1 });
+  const products = await Product.find({ status: 'PENDING' })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const productIds = products.map((p) => p._id);
+  const variants = await ProductVariant.find({ product: { $in: productIds } }).lean();
+  const images = await ProductImage.find({ product: { $in: productIds } }).lean();
+
+  const variantMap = {};
+  variants.forEach((v) => {
+    if (!variantMap[v.product.toString()]) variantMap[v.product.toString()] = [];
+    variantMap[v.product.toString()].push(v);
+  });
+
+  const imageMap = {};
+  images.forEach((img) => {
+    if (!imageMap[img.product.toString()]) imageMap[img.product.toString()] = [];
+    imageMap[img.product.toString()].push(img);
+  });
+
+  return products.map((p) => ({
+    ...p,
+    id: p._id,
+    vendorId: p.vendor,
+    categoryId: p.category,
+    variants: variantMap[p._id.toString()] || [],
+    images: imageMap[p._id.toString()] || []
+  }));
 };
 
 const getAllProducts = async () => {
-  return Product.find({ status: { $ne: 'DRAFT' } })
-    .populate('vendor', 'storeName storeSlug')
-    .populate('category', 'name slug')
-    .sort({ createdAt: -1 });
+  const products = await Product.find({ status: { $ne: 'DRAFT' } })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const productIds = products.map((p) => p._id);
+  const variants = await ProductVariant.find({ product: { $in: productIds } }).lean();
+  const images = await ProductImage.find({ product: { $in: productIds } }).lean();
+
+  const variantMap = {};
+  variants.forEach((v) => {
+    if (!variantMap[v.product.toString()]) variantMap[v.product.toString()] = [];
+    variantMap[v.product.toString()].push(v);
+  });
+
+  const imageMap = {};
+  images.forEach((img) => {
+    if (!imageMap[img.product.toString()]) imageMap[img.product.toString()] = [];
+    imageMap[img.product.toString()].push(img);
+  });
+
+  return products.map((p) => ({
+    ...p,
+    id: p._id,
+    vendorId: p.vendor,
+    categoryId: p.category,
+    variants: variantMap[p._id.toString()] || [],
+    images: imageMap[p._id.toString()] || []
+  }));
 };
 
 const getVendorProducts = async (vendorUserId) => {

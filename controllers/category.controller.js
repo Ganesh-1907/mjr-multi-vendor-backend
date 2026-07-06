@@ -5,15 +5,7 @@ const ApiResponse = require('../utils/ApiResponse');
 const getAllCategories = async (req, res, next) => {
   try {
     const categories = await categoryService.getAllCategories(true);
-    // Add product count
-    const Product = require('../models/Product');
-    const categoriesWithCount = await Promise.all(
-      categories.map(async (cat) => {
-        const count = await Product.countDocuments({ category: cat._id, status: 'APPROVED' });
-        return { ...cat, productCount: count };
-      })
-    );
-    res.json(ApiResponse.success(categoriesWithCount));
+    res.json(ApiResponse.success(categories));
   } catch (error) {
     next(error);
   }

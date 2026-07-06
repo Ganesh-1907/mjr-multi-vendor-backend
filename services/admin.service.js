@@ -14,6 +14,10 @@ const { nanoid } = require('nanoid');
 const { sendVendorApprovalEmail, sendVendorRejectionEmail, sendVendorCredentialsEmail } = require('../utils/email');
 
 const getDashboardStats = async () => {
+  const Role = require('../models/Role');
+  const customerRole = await Role.findOne({ name: 'CUSTOMER' });
+  const vendorRole = await Role.findOne({ name: 'VENDOR' });
+
   const [
     totalOrders,
     totalProducts,
@@ -26,8 +30,8 @@ const getDashboardStats = async () => {
   ] = await Promise.all([
     Order.countDocuments(),
     Product.countDocuments({ status: { $ne: 'DRAFT' } }),
-    Vendor.countDocuments(),
-    User.countDocuments().populate({ path: 'role', match: { name: 'CUSTOMER' } }),
+    User.countDocuments({ role: vendorRole?._id }),
+    User.countDocuments({ role: customerRole?._id }),
     OrderItem.aggregate([
       { $group: { _id: null, total: { $sum: '$totalPrice' } } },
     ]),
@@ -41,7 +45,57 @@ const getDashboardStats = async () => {
   // Recent orders
   const recentOrders = await Order.find().sort({ createdAt: -1 }).limit(5).lean();
 
-  return { totalOrders, totalProducts, totalVendors, totalCustomers, totalRevenue: revenue, pendingProducts, pendingVendors, openTickets, recentOrders };
+  // Monthly revenue for chart (last 6 months)
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+  sixMonthsAgo.setDate(1);
+  sixMonthsAgo.setHours(0, 0, 0, 0);
+
+  const monthlyRevData = await OrderItem.aggregate([
+    { $match: { createdAt: { $gte: sixMonthsAgo } } },
+    {
+      $group: {
+        _id: { month: { $month: '$createdAt' }, year: { $year: '$createdAt' } },
+        total: { $sum: '$totalPrice' }
+      }
+    },
+    { $sort: { '_id.year': 1, '_id.month': 1 } }
+  ]);
+
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  // Initialize last 6 months with 0
+  const monthlyRevenue = [];
+  let maxMonthlyRev = 0;
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    monthlyRevenue.push({
+      name: monthNames[d.getMonth()],
+      month: d.getMonth() + 1,
+      year: d.getFullYear(),
+      total: 0,
+      percentage: 0
+    });
+  }
+
+  // Populate actuals
+  monthlyRevData.forEach(item => {
+    const monthRecord = monthlyRevenue.find(m => m.month === item._id.month && m.year === item._id.year);
+    if (monthRecord) {
+      monthRecord.total = item.total;
+      if (item.total > maxMonthlyRev) maxMonthlyRev = item.total;
+    }
+  });
+
+  // Calculate percentages for bars
+  if (maxMonthlyRev > 0) {
+    monthlyRevenue.forEach(m => {
+      m.percentage = Math.round((m.total / maxMonthlyRev) * 100);
+    });
+  }
+
+  return { totalOrders, totalProducts, totalVendors, totalCustomers, totalRevenue: revenue, pendingProducts, pendingVendors, openTickets, recentOrders, monthlyRevenue };
 };
 
 const getUsers = async () => {

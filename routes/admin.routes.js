@@ -34,6 +34,7 @@ router.get('/orders', adminController.getOrders);
 router.put('/orders/:orderId/status', adminController.updateOrderStatus);
 
 // Categories
+router.get('/categories', adminController.getAllCategories);
 router.post('/categories', adminController.createCategory);
 router.put('/categories/:categoryId', adminController.updateCategory);
 router.delete('/categories/:categoryId', adminController.deleteCategory);

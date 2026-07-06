@@ -70,8 +70,8 @@ const sendSignupOtp = async (email, role) => {
     await User.create({
       email,
       passwordHash: 'temp-password',
-      firstName: '',
-      lastName: '',
+      firstName: 'Pending',
+      lastName: 'User',
       role: roleDoc._id,
       verificationOtp: otp,
       otpExpiry: new Date(Date.now() + OTP_EXPIRY),

@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
+    mongoose.set('toJSON', { virtuals: true });
+    mongoose.set('toObject', { virtuals: true });
+    
     const conn = await mongoose.connect(process.env.MONGODB_URI);
     console.log(`Connected to MongoDB: ${conn.connection.host}`);
   } catch (error) {

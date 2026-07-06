@@ -40,4 +40,16 @@ router.delete('/', authenticate, async (req, res, next) => {
   }
 });
 
+// GET /api/upload/file/:key — serve an image from R2 through backend proxy
+router.get('/file/:key', async (req, res, next) => {
+  try {
+    const { getFile } = require('../services/upload.service');
+    const response = await getFile(req.params.key);
+    res.setHeader('Content-Type', response.ContentType);
+    response.Body.pipe(res);
+  } catch (error) {
+    res.status(404).send('Image not found');
+  }
+});
+
 module.exports = router;

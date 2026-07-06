@@ -181,6 +181,22 @@ const updateOrderStatus = async (req, res, next) => {
 };
 
 // Categories
+const getAllCategories = async (req, res, next) => {
+  try {
+    const categories = await categoryService.getAllCategories(false);
+    const Product = require('../models/Product');
+    const categoriesWithCount = await Promise.all(
+      categories.map(async (cat) => {
+        const count = await Product.countDocuments({ category: cat._id });
+        return { ...cat, productCount: count };
+      })
+    );
+    res.json(ApiResponse.success(categoriesWithCount));
+  } catch (error) {
+    next(error);
+  }
+};
+
 const createCategory = async (req, res, next) => {
   try {
     const category = await categoryService.createCategory(req.body);
@@ -334,7 +350,7 @@ module.exports = {
   getVendors, getPendingVendors, approveVendor, rejectVendor, createVendor,
   getAllProducts, getPendingProducts, approveProduct, rejectProduct, createProduct, updateProduct, deleteProduct,
   getOrders, updateOrderStatus,
-  createCategory, updateCategory, deleteCategory,
+  getAllCategories, createCategory, updateCategory, deleteCategory,
   getBanners, createBanner, updateBanner, deleteBanner,
   getCoupons, createCoupon, updateCoupon, deleteCoupon,
   getTickets, assignTicket, updateTicketStatus,

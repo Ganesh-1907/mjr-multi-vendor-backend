@@ -5,7 +5,16 @@ const { AppError } = require('./auth.service');
 
 const getAllCategories = async (activeOnly = true) => {
   const query = activeOnly ? { isActive: true } : {};
-  return Category.find(query).sort({ displayOrder: 1 }).lean();
+  const categories = await Category.find(query).sort({ displayOrder: 1 }).lean();
+  
+  const productCounts = await Promise.all(
+    categories.map(cat => Product.countDocuments({ category: cat._id, status: 'APPROVED' }))
+  );
+  
+  return categories.map((cat, index) => ({
+    ...cat,
+    productCount: productCounts[index]
+  }));
 };
 
 const getCategoryBySlug = async (slug) => {
