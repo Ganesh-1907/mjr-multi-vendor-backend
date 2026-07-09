@@ -15,13 +15,13 @@ const getWishlist = async (userId) => {
   const firstVariants = await ProductVariant.aggregate([
     { $match: { product: { $in: productIds } } },
     { $sort: { price: 1 } },
-    { $group: { _id: '$product', price: { $first: '$price' }, comparePrice: { $first: '$comparePrice' }, stockQuantity: { $first: '$stockQuantity' } } },
+    { $group: { _id: '$product', variantId: { $first: '$_id' }, price: { $first: '$price' }, comparePrice: { $first: '$comparePrice' }, stockQuantity: { $first: '$stockQuantity' } } },
   ]);
 
   const imageMap = {};
   primaryImages.forEach((img) => { imageMap[img.product.toString()] = img.url; });
   const variantMap = {};
-  firstVariants.forEach((v) => { variantMap[v._id.toString()] = { price: v.price, comparePrice: v.comparePrice, stockQuantity: v.stockQuantity }; });
+  firstVariants.forEach((v) => { variantMap[v._id.toString()] = { variantId: v.variantId, price: v.price, comparePrice: v.comparePrice, stockQuantity: v.stockQuantity }; });
 
   const wishlistItems = items
     .filter((i) => i.product)
@@ -30,7 +30,8 @@ const getWishlist = async (userId) => {
       productId: i.product._id,
       productName: i.product.name,
       productSlug: i.product.slug,
-      productImage: imageMap[i.product._id.toString()] || null,
+      productImageUrl: imageMap[i.product._id.toString()] || null,
+      variantId: variantMap[i.product._id.toString()]?.variantId || null,
       price: variantMap[i.product._id.toString()]?.price || 0,
       comparePrice: variantMap[i.product._id.toString()]?.comparePrice || null,
       rating: i.product.rating,
