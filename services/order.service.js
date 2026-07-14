@@ -241,12 +241,13 @@ const updateOrderStatus = async (orderId, status, description, location) => {
   const order = await Order.findById(orderId);
   if (!order) throw new AppError('Order not found', 404);
 
-  order.status = status;
-  if (status === 'DELIVERED') {
+  const upperStatus = status.toUpperCase();
+  order.status = upperStatus;
+  if (upperStatus === 'DELIVERED') {
     order.paymentStatus = 'COMPLETED';
     order.deliveredAt = new Date();
   }
-  if (status === 'CANCELLED') {
+  if (upperStatus === 'CANCELLED') {
     // Restore stock
     const items = await OrderItem.find({ order: orderId });
     for (const item of items) {
@@ -261,8 +262,8 @@ const updateOrderStatus = async (orderId, status, description, location) => {
 
   await OrderTracking.create({
     order: orderId,
-    status,
-    description: description || `Order ${status.toLowerCase()}`,
+    status: upperStatus,
+    description: description || `Order ${upperStatus.toLowerCase()}`,
     location,
   });
 
