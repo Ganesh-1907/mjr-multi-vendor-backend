@@ -84,8 +84,8 @@ const placeOrder = async (userId, request) => {
   }
 
   // Calculate totals
-  const shippingCost = subtotal >= 499 ? 0 : 49;
-  const tax = Math.round(subtotal * 0.05);
+  const shippingCost = subtotal >= 500 ? 0 : 49;
+  const tax = Math.round(subtotal * 0.18);
   const totalAmount = subtotal - discount + shippingCost + tax;
 
   // Create order
