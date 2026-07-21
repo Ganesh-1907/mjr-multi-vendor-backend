@@ -4,6 +4,7 @@ const upload = require('../middleware/upload.middleware');
 const { authenticate } = require('../middleware/auth.middleware');
 const { uploadFile, deleteFile } = require('../services/upload.service');
 const ApiResponse = require('../utils/ApiResponse');
+const { restrictTo } = require('../middleware/role.middleware');
 
 // POST /api/upload — upload a single image to R2
 router.post('/', authenticate, (req, res, next) => {
@@ -26,7 +27,7 @@ router.post('/', authenticate, (req, res, next) => {
 });
 
 // DELETE /api/upload — delete an image from R2 by URL
-router.delete('/', authenticate, async (req, res, next) => {
+router.delete('/', authenticate, restrictTo('ADMIN', 'VENDOR'), async (req, res, next) => {
   try {
     const { url } = req.body;
     if (!url) {
