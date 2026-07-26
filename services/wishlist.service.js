@@ -6,7 +6,7 @@ const { AppError } = require('./auth.service');
 
 const getWishlist = async (userId) => {
   const items = await WishlistItem.find({ user: userId })
-    .populate('product', 'name slug rating totalReviews status')
+    .populate('product', 'name slug rating totalReviews approvalStatus availabilityStatus')
     .sort({ createdAt: -1 })
     .lean();
 

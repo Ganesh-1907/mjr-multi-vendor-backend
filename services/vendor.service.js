@@ -24,8 +24,8 @@ const getVendorStats = async (vendorUserId) => {
   if (!vendor) throw new AppError('Vendor profile not found');
 
   const totalProducts = await Product.countDocuments({ vendor: vendor._id });
-  const activeProducts = await Product.countDocuments({ vendor: vendor._id, status: 'APPROVED' });
-  const pendingProducts = await Product.countDocuments({ vendor: vendor._id, status: 'PENDING' });
+  const activeProducts = await Product.countDocuments({ vendor: vendor._id, approvalStatus: 'APPROVED' });
+  const pendingProducts = await Product.countDocuments({ vendor: vendor._id, approvalStatus: { $in: ['PENDING_REVIEW', 'UNDER_REVIEW'] } });
 
   const OrderItem = require('../models/OrderItem');
   const Order = require('../models/Order');

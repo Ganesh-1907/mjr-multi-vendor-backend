@@ -9,7 +9,7 @@ const { generateUniqueSlug } = require('../utils/slugify');
 const { AppError } = require('./auth.service');
 
 const getProductBySlug = async (slug) => {
-  const product = await Product.findOne({ slug, status: 'APPROVED' })
+  const product = await Product.findOne({ slug, approvalStatus: 'APPROVED', availabilityStatus: 'ACTIVE' })
     .populate('vendor', 'storeName storeSlug rating')
     .populate('category', 'name slug');
 
@@ -42,7 +42,7 @@ const getProducts = async (filters = {}) => {
   const skip = (pageNum - 1) * parseInt(size);
   const limit = parseInt(size);
 
-  const query = { status: 'APPROVED' };
+  const query = { approvalStatus: 'APPROVED', availabilityStatus: 'ACTIVE' };
 
   if (category) {
     const Category = require('../models/Category');
@@ -147,7 +147,7 @@ const getFeaturedProducts = async () => {
 };
 
 const getTrendingProducts = async () => {
-  const products = await Product.find({ status: 'APPROVED', isTrending: true })
+  const products = await Product.find({ approvalStatus: 'APPROVED', availabilityStatus: 'ACTIVE', isTrending: true })
     .populate('vendor', 'storeName storeSlug')
     .populate('category', 'name slug')
     .limit(8)
@@ -187,7 +187,8 @@ const getRelatedProducts = async (productId, limit = 4) => {
   const related = await Product.find({
     _id: { $ne: productId },
     category: product.category,
-    status: 'APPROVED',
+    approvalStatus: 'APPROVED',
+    availabilityStatus: 'ACTIVE',
   })
     .populate('vendor', 'storeName storeSlug')
     .limit(limit)
@@ -234,7 +235,8 @@ const createProduct = async (vendorUserId, request) => {
     slug,
     shortDescription: request.shortDescription || '',
     description: request.description || '',
-    status: 'PENDING',
+    approvalStatus: request.approvalStatus || 'DRAFT',
+    availabilityStatus: request.availabilityStatus || 'INACTIVE',
     isFeatured: false,
     isTrending: false,
     tags: request.tags || [],
@@ -292,9 +294,12 @@ const updateProduct = async (productId, vendorUserId, request) => {
   if (request.tags) product.tags = request.tags;
   if (request.specifications) product.specifications = request.specifications;
 
-  // Reset status to PENDING on update
-  if (product.status === 'APPROVED' || product.status === 'REJECTED') {
-    product.status = 'PENDING';
+  if (request.approvalStatus) product.approvalStatus = request.approvalStatus;
+  if (request.availabilityStatus) product.availabilityStatus = request.availabilityStatus;
+
+  const isFullUpdate = request.name || request.shortDescription || request.description || request.categoryId || request.variants;
+  if (isFullUpdate && (product.approvalStatus === 'APPROVED' || product.approvalStatus === 'REJECTED')) {
+    product.approvalStatus = 'PENDING_REVIEW';
   }
 
   await product.save();
@@ -338,6 +343,13 @@ const deleteProduct = async (productId, vendorUserId) => {
   const product = await Product.findOne({ _id: productId, vendor: vendor._id });
   if (!product) throw new AppError('Product not found or not authorized', 404);
 
+  // Check if product is part of any active order
+  const OrderItem = require('../models/OrderItem');
+  const activeOrderItems = await OrderItem.findOne({ product: product._id });
+  if (activeOrderItems) {
+    throw new AppError('Cannot delete product because it is part of existing orders. Please archive it or mark it out of stock instead.', 400);
+  }
+
   await ProductVariant.deleteMany({ product: product._id });
   await ProductImage.deleteMany({ product: product._id });
   await Product.deleteOne({ _id: product._id });
@@ -347,19 +359,19 @@ const deleteProduct = async (productId, vendorUserId) => {
 };
 
 const approveProduct = async (productId) => {
-  const product = await Product.findByIdAndUpdate(productId, { status: 'APPROVED' }, { new: true });
+  const product = await Product.findByIdAndUpdate(productId, { approvalStatus: 'APPROVED' }, { new: true });
   if (!product) throw new AppError('Product not found', 404);
   return product;
 };
 
 const rejectProduct = async (productId) => {
-  const product = await Product.findByIdAndUpdate(productId, { status: 'REJECTED' }, { new: true });
+  const product = await Product.findByIdAndUpdate(productId, { approvalStatus: 'REJECTED' }, { new: true });
   if (!product) throw new AppError('Product not found', 404);
   return product;
 };
 
 const getPendingProducts = async () => {
-  const products = await Product.find({ status: 'PENDING' })
+  const products = await Product.find({ approvalStatus: { $in: ['PENDING_REVIEW', 'UNDER_REVIEW'] } })
     .sort({ createdAt: -1 })
     .lean();
 
@@ -390,7 +402,7 @@ const getPendingProducts = async () => {
 };
 
 const getAllProducts = async () => {
-  const products = await Product.find({ status: { $ne: 'DRAFT' } })
+  const products = await Product.find({ approvalStatus: { $ne: 'DRAFT' } })
     .sort({ createdAt: -1 })
     .lean();
 

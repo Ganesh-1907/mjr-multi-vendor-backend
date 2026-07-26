@@ -29,6 +29,13 @@ const orderItemSchema = new mongoose.Schema(
     totalPrice: { type: Number, required: true, min: 0 },
     vendorPayout: { type: Number, min: 0 },
     commissionAmount: { type: Number, min: 0 },
+    fulfillmentStatus: {
+      type: String,
+      enum: ['PENDING', 'PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'RETURNED'],
+      default: 'PENDING',
+    },
+    trackingNumber: { type: String },
+    courier: { type: String },
   },
   { timestamps: true }
 );

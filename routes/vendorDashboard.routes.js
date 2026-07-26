@@ -14,7 +14,6 @@ router.delete('/products/:productId', vendorController.deleteProduct);
 router.get('/analytics', vendorController.getAnalytics);
 router.get('/reviews', vendorController.getReviews);
 router.get('/orders', vendorController.getOrders);
-router.put('/orders/:orderId/status', vendorController.updateOrderStatus);
 router.put('/profile', vendorController.updateProfile);
 
 module.exports = router;

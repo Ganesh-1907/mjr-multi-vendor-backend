@@ -8,7 +8,7 @@ const getAllCategories = async (activeOnly = true) => {
   const categories = await Category.find(query).sort({ displayOrder: 1 }).lean();
   
   const productCounts = await Promise.all(
-    categories.map(cat => Product.countDocuments({ category: cat._id, status: 'APPROVED' }))
+    categories.map(cat => Product.countDocuments({ category: cat._id, approvalStatus: 'APPROVED', availabilityStatus: 'ACTIVE' }))
   );
   
   return categories.map((cat, index) => ({

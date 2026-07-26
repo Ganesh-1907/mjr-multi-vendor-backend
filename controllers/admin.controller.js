@@ -122,7 +122,7 @@ const rejectProduct = async (req, res, next) => {
 const createProduct = async (req, res, next) => {
   try {
     const Product = require('../models/Product');
-    const product = await productService.createProduct(req.body.vendorUserId, { ...req.body, status: 'APPROVED' });
+    const product = await productService.createProduct(req.body.vendorUserId, { ...req.body, approvalStatus: 'APPROVED', availabilityStatus: 'ACTIVE' });
     res.json(ApiResponse.success(product, 'Product created'));
   } catch (error) {
     next(error);

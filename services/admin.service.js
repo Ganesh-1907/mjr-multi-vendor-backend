@@ -29,13 +29,13 @@ const getDashboardStats = async () => {
     openTickets,
   ] = await Promise.all([
     Order.countDocuments(),
-    Product.countDocuments({ status: { $ne: 'DRAFT' } }),
+    Product.countDocuments({ approvalStatus: { $ne: 'DRAFT' } }),
     User.countDocuments({ role: vendorRole?._id }),
     User.countDocuments({ role: customerRole?._id }),
     OrderItem.aggregate([
       { $group: { _id: null, total: { $sum: '$totalPrice' } } },
     ]),
-    Product.countDocuments({ status: 'PENDING' }),
+    Product.countDocuments({ approvalStatus: { $in: ['PENDING_REVIEW', 'UNDER_REVIEW'] } }),
     Vendor.countDocuments({ isVerified: false }),
     SupportTicket.countDocuments({ status: { $in: ['OPEN', 'IN_PROGRESS'] } }),
   ]);

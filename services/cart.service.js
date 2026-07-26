@@ -5,7 +5,7 @@ const { AppError } = require('./auth.service');
 
 const getCart = async (userId) => {
   const items = await CartItem.find({ user: userId })
-    .populate('product', 'name slug status')
+    .populate('product', 'name slug approvalStatus availabilityStatus')
     .populate('variant')
     .lean();
 

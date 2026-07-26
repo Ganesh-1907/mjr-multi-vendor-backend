@@ -118,26 +118,6 @@ const getOrders = async (req, res, next) => {
   }
 };
 
-const updateOrderStatus = async (req, res, next) => {
-  try {
-    const { status, description, location } = req.body;
-    const order = await orderService.getOrderById(req.params.orderId);
-    const Vendor = require('../models/Vendor');
-    const vendor = await Vendor.findOne({ user: req.user.userId });
-
-    // Verify order contains vendor's items
-    const vendorItems = await OrderItem.find({ order: req.params.orderId, vendor: vendor._id });
-    if (vendorItems.length === 0) {
-      return res.status(403).json(ApiResponse.error('Not authorized'));
-    }
-
-    const updated = await orderService.updateOrderStatus(req.params.orderId, status, description, location);
-    res.json(ApiResponse.success(updated, 'Order status updated'));
-  } catch (error) {
-    next(error);
-  }
-};
-
 const updateProfile = async (req, res, next) => {
   try {
     const profile = await vendorService.updateVendorProfile(req.user.userId, req.body);
@@ -147,4 +127,4 @@ const updateProfile = async (req, res, next) => {
   }
 };
 
-module.exports = { getDashboard, getVendorProducts, createProduct, updateProduct, deleteProduct, getAnalytics, getReviews, getOrders, updateOrderStatus, updateProfile };
+module.exports = { getDashboard, getVendorProducts, createProduct, updateProduct, deleteProduct, getAnalytics, getReviews, getOrders, updateProfile };

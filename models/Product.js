@@ -18,11 +18,18 @@ const productSchema = new mongoose.Schema(
     description: { type: String },
     rating: { type: Number, default: 0, min: 0, max: 5 },
     totalReviews: { type: Number, default: 0 },
-    status: {
+    approvalStatus: {
       type: String,
-      enum: ['PENDING', 'APPROVED', 'REJECTED', 'DRAFT'],
-      default: 'PENDING',
+      enum: ['DRAFT', 'PENDING_REVIEW', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'ARCHIVED'],
+      default: 'DRAFT',
     },
+    availabilityStatus: {
+      type: String,
+      enum: ['ACTIVE', 'INACTIVE', 'OUT_OF_STOCK'],
+      default: 'INACTIVE',
+    },
+    reviewComments: { type: String, default: '' },
+    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     isFeatured: { type: Boolean, default: false },
     isTrending: { type: Boolean, default: false },
     tags: [{ type: String }],
@@ -32,10 +39,10 @@ const productSchema = new mongoose.Schema(
 );
 
 productSchema.index({ slug: 1 });
-productSchema.index({ status: 1, isFeatured: 1 });
-productSchema.index({ status: 1, isTrending: 1 });
-productSchema.index({ category: 1, status: 1 });
-productSchema.index({ vendor: 1, status: 1 });
+productSchema.index({ approvalStatus: 1, availabilityStatus: 1, isFeatured: 1 });
+productSchema.index({ approvalStatus: 1, availabilityStatus: 1, isTrending: 1 });
+productSchema.index({ category: 1, approvalStatus: 1, availabilityStatus: 1 });
+productSchema.index({ vendor: 1, approvalStatus: 1, availabilityStatus: 1 });
 productSchema.index({ name: 'text', description: 'text', tags: 'text' });
 
 module.exports = mongoose.model('Product', productSchema);

@@ -276,6 +276,7 @@ const getVendorOrders = async (vendorUserId) => {
 
   const vendorOrderItems = await OrderItem.find({ vendor: vendor._id }).distinct('order');
   const orders = await Order.find({ _id: { $in: vendorOrderItems } })
+    .select('orderNumber createdAt shippingAddress') // Exclude payment, email, total amount, taxes
     .sort({ createdAt: -1 })
     .lean();
 
@@ -288,10 +289,43 @@ const getVendorOrders = async (vendorUserId) => {
     itemMap[item.order.toString()].push(item);
   });
 
-  return orders.map((order) => ({
-    ...order,
-    items: itemMap[order._id.toString()] || [],
-  }));
+  return orders.map((order) => {
+    const vendorItems = itemMap[order._id.toString()] || [];
+    // Calculate vendor-specific subtotal
+    const vendorTotal = vendorItems.reduce((sum, item) => sum + item.totalPrice, 0);
+    const vendorPayout = vendorItems.reduce((sum, item) => sum + item.vendorPayout, 0);
+    
+    // Overall vendor order status based on item statuses
+    const hasPending = vendorItems.some(i => i.fulfillmentStatus === 'PENDING');
+    const allDelivered = vendorItems.every(i => i.fulfillmentStatus === 'DELIVERED');
+    const allShipped = vendorItems.every(i => ['SHIPPED', 'DELIVERED'].includes(i.fulfillmentStatus));
+    
+    let vendorOrderStatus = 'PENDING';
+    if (allDelivered) vendorOrderStatus = 'DELIVERED';
+    else if (allShipped) vendorOrderStatus = 'SHIPPED';
+    else if (!hasPending && vendorItems.length > 0) vendorOrderStatus = 'PROCESSING';
+    
+    return {
+      _id: order._id,
+      orderNumber: order.orderNumber,
+      createdAt: order.createdAt,
+      // Minimal shipping address required for fulfillment
+      shippingFullName: order.shippingAddress.fullName,
+      shippingAddressLine1: order.shippingAddress.addressLine1,
+      shippingAddressLine2: order.shippingAddress.addressLine2,
+      shippingCity: order.shippingAddress.city,
+      shippingState: order.shippingAddress.state,
+      shippingPincode: order.shippingAddress.pincode,
+      // NOTE: Intentionally omitting phone number and email for privacy unless specifically configured.
+      // Phone is usually needed by courier, so we include it.
+      shippingPhone: order.shippingAddress.phone,
+      
+      status: vendorOrderStatus,
+      vendorTotal,
+      vendorPayout,
+      items: vendorItems
+    };
+  });
 };
 
 const getOrderTracking = async (orderId) => {
