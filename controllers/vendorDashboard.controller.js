@@ -164,4 +164,36 @@ const getPayouts = async (req, res, next) => {
 
 
 
-module.exports = { getDashboard, getVendorProducts, createProduct, updateProduct, deleteProduct, getAnalytics, getReviews, getOrders, updateProfile, getPayouts };
+const updateOrderItem = async (req, res, next) => {
+  try {
+    const { itemId } = req.params;
+    const { fulfillmentStatus, trackingNumber, courier } = req.body;
+    
+    // Vendor authorization check
+    const vendor = await Vendor.findOne({ user: req.user.userId });
+    if (!vendor) return res.status(400).json(ApiResponse.error('Vendor not found'));
+
+    const orderItem = await OrderItem.findOne({ _id: itemId, vendor: vendor._id }).populate('order');
+    if (!orderItem) return res.status(404).json(ApiResponse.error('Order item not found'));
+
+    if (fulfillmentStatus !== undefined) orderItem.fulfillmentStatus = fulfillmentStatus;
+    if (trackingNumber !== undefined) orderItem.trackingNumber = trackingNumber;
+    if (courier !== undefined) orderItem.courier = courier;
+
+    await orderItem.save();
+
+    if (fulfillmentStatus === 'SHIPPED' || fulfillmentStatus === 'DELIVERED') {
+       const orderDoc = await Order.findById(orderItem.order);
+       if (orderDoc && orderDoc.customerEmail) {
+         const { sendOrderStatusUpdateEmail } = require('../utils/email');
+         await sendOrderStatusUpdateEmail(orderDoc.customerEmail, orderDoc.orderNumber, `Item ${orderItem.productName} is now ${fulfillmentStatus}`).catch(err => console.error(err));
+       }
+    }
+
+    res.json(ApiResponse.success(orderItem, 'Order item updated'));
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { getDashboard, getVendorProducts, createProduct, updateProduct, deleteProduct, getAnalytics, getReviews, getOrders, updateProfile, getPayouts, updateOrderItem };

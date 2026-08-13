@@ -65,5 +65,6 @@ router.delete('/contacts/:contactId', adminController.deleteContact);
 // Payouts
 router.get('/payouts', adminController.getPayouts);
 router.post('/payouts', adminController.createPayout);
+router.delete('/payouts/:payoutId', adminController.deletePayout);
 
 module.exports = router;

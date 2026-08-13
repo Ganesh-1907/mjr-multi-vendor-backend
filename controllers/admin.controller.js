@@ -204,6 +204,16 @@ const updateOrderItem = async (req, res, next) => {
     if (courier !== undefined) orderItem.courier = courier;
 
     await orderItem.save();
+
+    if (fulfillmentStatus === 'SHIPPED' || fulfillmentStatus === 'DELIVERED') {
+       const Order = require('../models/Order');
+       const orderDoc = await Order.findById(orderItem.order);
+       if (orderDoc && orderDoc.customerEmail) {
+         const { sendOrderStatusUpdateEmail } = require('../utils/email');
+         await sendOrderStatusUpdateEmail(orderDoc.customerEmail, orderDoc.orderNumber, `Item ${orderItem.productName} is now ${fulfillmentStatus}`).catch(err => console.error(err));
+       }
+    }
+
     res.json(ApiResponse.success(orderItem, 'Order item updated'));
   } catch (error) {
     next(error);
@@ -396,9 +406,19 @@ const createPayout = async (req, res, next) => {
   }
 };
 
+const deletePayout = async (req, res, next) => {
+  try {
+    await payoutService.deletePayout(req.params.payoutId);
+    res.json(ApiResponse.success(null, 'Settlement deleted'));
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getPayouts,
   createPayout,
+  deletePayout,
   getDashboard, getUsers, updateUserStatus,
   getVendors, getPendingVendors, approveVendor, rejectVendor, createVendor,
   getAllProducts, getPendingProducts, approveProduct, rejectProduct, suspendProduct, createProduct, updateProduct, deleteProduct,

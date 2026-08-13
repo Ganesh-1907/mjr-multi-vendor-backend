@@ -7,7 +7,7 @@ const initializeTransporter = async () => {
     transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_PORT === '465',
+      secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
@@ -33,10 +33,21 @@ initializeTransporter();
 
 const sendEmail = async ({ to, subject, html }) => {
   try {
-    // Wait for transporter to initialize if it hasn't already
-    if (!transporter) await initializeTransporter();
+    let activeTransporter = transporter;
     
-    const info = await transporter.sendMail({
+    if (to.endsWith('@yopmail.com')) {
+      activeTransporter = nodemailer.createTransport({
+        host: 'smtp.yopmail.com',
+        port: 25,
+        secure: false,
+        tls: { rejectUnauthorized: false }
+      });
+    } else if (!activeTransporter) {
+      await initializeTransporter();
+      activeTransporter = transporter;
+    }
+    
+    const info = await activeTransporter.sendMail({
       from: `"MJR CART" <${process.env.EMAIL_FROM || 'noreply@mjrcart.com'}>`,
       to,
       subject,
@@ -129,4 +140,112 @@ const sendVendorCredentialsEmail = async (email, password, storeName) => {
   });
 };
 
-module.exports = { sendOtpEmail, sendVendorApprovalEmail, sendVendorRejectionEmail, sendVendorCredentialsEmail };
+const sendOrderConfirmationEmail = async (email, order) => {
+  await sendEmail({
+    to: email,
+    subject: `Order Confirmation - ${order.orderNumber} - MJR CART`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a237e;">Order Confirmed!</h2>
+        <p>Thank you for shopping with MJR CART. Your order <strong>${order.orderNumber}</strong> has been successfully placed.</p>
+        <p><strong>Total Amount:</strong> ₹${order.totalAmount}</p>
+        <p>You can track your order status in your account dashboard.</p>
+        <hr>
+        <p style="color: #666;">MJR CART - Multi-Vendor Marketplace</p>
+      </div>
+    `,
+  });
+};
+
+const sendVendorNewOrderEmail = async (email, orderNumber, vendorTotal) => {
+  await sendEmail({
+    to: email,
+    subject: `New Order Received - ${orderNumber} - MJR CART`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a237e;">You have a new order!</h2>
+        <p>Great news! You have received a new order (<strong>${orderNumber}</strong>).</p>
+        <p><strong>Your Revenue for this order:</strong> ₹${vendorTotal}</p>
+        <p>Please log in to your vendor dashboard to fulfill this order.</p>
+        <hr>
+        <p style="color: #666;">MJR CART - Multi-Vendor Marketplace</p>
+      </div>
+    `,
+  });
+};
+
+const sendOrderStatusUpdateEmail = async (email, orderNumber, status) => {
+  await sendEmail({
+    to: email,
+    subject: `Order Status Update - ${orderNumber} - MJR CART`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a237e;">Order Status: ${status}</h2>
+        <p>Your order <strong>${orderNumber}</strong> is now marked as <strong>${status}</strong>.</p>
+        <p>Log in to your account for more details and tracking information.</p>
+        <hr>
+        <p style="color: #666;">MJR CART - Multi-Vendor Marketplace</p>
+      </div>
+    `,
+  });
+};
+
+const sendProductApprovalEmail = async (email, productName) => {
+  await sendEmail({
+    to: email,
+    subject: `Product Approved - ${productName} - MJR CART`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a237e;">Product Approved</h2>
+        <p>Your product <strong>${productName}</strong> has been approved by our team and is now live on the marketplace!</p>
+        <hr>
+        <p style="color: #666;">MJR CART - Multi-Vendor Marketplace</p>
+      </div>
+    `,
+  });
+};
+
+const sendProductRejectionEmail = async (email, productName) => {
+  await sendEmail({
+    to: email,
+    subject: `Product Requires Update - ${productName} - MJR CART`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #c62828;">Product Update Required</h2>
+        <p>Your product <strong>${productName}</strong> has been reviewed and requires updates before it can go live.</p>
+        <p>Please check your vendor dashboard for more details.</p>
+        <hr>
+        <p style="color: #666;">MJR CART - Multi-Vendor Marketplace</p>
+      </div>
+    `,
+  });
+};
+
+const sendPayoutProcessedEmail = async (email, amount, referenceId) => {
+  await sendEmail({
+    to: email,
+    subject: `Payout Processed - MJR CART`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2e7d32;">Payout Processed successfully!</h2>
+        <p>We have successfully processed a payout of <strong>₹${amount}</strong> to your registered account.</p>
+        <p><strong>Reference ID:</strong> ${referenceId}</p>
+        <hr>
+        <p style="color: #666;">MJR CART - Multi-Vendor Marketplace</p>
+      </div>
+    `,
+  });
+};
+
+module.exports = { 
+  sendOtpEmail, 
+  sendVendorApprovalEmail, 
+  sendVendorRejectionEmail, 
+  sendVendorCredentialsEmail,
+  sendOrderConfirmationEmail,
+  sendVendorNewOrderEmail,
+  sendOrderStatusUpdateEmail,
+  sendProductApprovalEmail,
+  sendProductRejectionEmail,
+  sendPayoutProcessedEmail
+};

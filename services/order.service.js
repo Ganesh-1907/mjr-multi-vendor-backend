@@ -11,6 +11,7 @@ const User = require('../models/User');
 const Address = require('../models/Address');
 const { nanoid } = require('nanoid');
 const { AppError } = require('./auth.service');
+const { sendOrderConfirmationEmail, sendVendorNewOrderEmail, sendOrderStatusUpdateEmail } = require('../utils/email');
 
 const generateOrderNumber = async () => {
   const date = new Date();
@@ -182,6 +183,22 @@ const placeOrder = async (userId, request) => {
     }
   }
 
+  // Send order confirmation to customer
+  await sendOrderConfirmationEmail(user.email, order).catch(err => console.error('Email error:', err));
+
+  // Send new order notifications to vendors
+  const vendorTotals = {};
+  for (const item of orderItems) {
+    if (!vendorTotals[item.vendor]) vendorTotals[item.vendor] = 0;
+    vendorTotals[item.vendor] += item.vendorPayout;
+  }
+  for (const [vendorId, total] of Object.entries(vendorTotals)) {
+    const vendorDoc = await Vendor.findById(vendorId).populate('user');
+    if (vendorDoc && vendorDoc.user && vendorDoc.user.email) {
+      await sendVendorNewOrderEmail(vendorDoc.user.email, order.orderNumber, total).catch(err => console.error('Email error:', err));
+    }
+  }
+
   return getOrderById(order._id);
 };
 
@@ -240,6 +257,8 @@ const cancelOrder = async (orderId, userId) => {
     description: 'Order cancelled by customer',
   });
 
+  await sendOrderStatusUpdateEmail(order.customerEmail, order.orderNumber, 'CANCELLED').catch(err => console.error('Email error:', err));
+
   return getOrderById(orderId);
 };
 
@@ -278,6 +297,8 @@ const updateOrderStatus = async (orderId, status, description, location) => {
     description: description || `Order ${upperStatus.toLowerCase()}`,
     location,
   });
+
+  await sendOrderStatusUpdateEmail(order.customerEmail, order.orderNumber, upperStatus).catch(err => console.error('Email error:', err));
 
   return getOrderById(order._id);
 };

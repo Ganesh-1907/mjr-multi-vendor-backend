@@ -7,6 +7,7 @@ const Category = require('../models/Category');
 const OrderItem = require('../models/OrderItem');
 const { generateUniqueSlug } = require('../utils/slugify');
 const { AppError } = require('./auth.service');
+const { sendProductApprovalEmail, sendProductRejectionEmail } = require('../utils/email');
 const { nanoid } = require('nanoid');
 
 const getProductBySlug = async (slug) => {
@@ -362,14 +363,20 @@ const deleteProduct = async (productId, vendorUserId) => {
 };
 
 const approveProduct = async (productId) => {
-  const product = await Product.findByIdAndUpdate(productId, { approvalStatus: 'APPROVED', availabilityStatus: 'ACTIVE' }, { new: true });
+  const product = await Product.findByIdAndUpdate(productId, { approvalStatus: 'APPROVED', availabilityStatus: 'ACTIVE' }, { new: true }).populate({ path: 'vendor', populate: { path: 'user' } });
   if (!product) throw new AppError('Product not found', 404);
+  if (product.vendor && product.vendor.user && product.vendor.user.email) {
+    await sendProductApprovalEmail(product.vendor.user.email, product.name).catch(err => console.error('Email error:', err));
+  }
   return product;
 };
 
 const rejectProduct = async (productId) => {
-  const product = await Product.findByIdAndUpdate(productId, { approvalStatus: 'REJECTED' }, { new: true });
+  const product = await Product.findByIdAndUpdate(productId, { approvalStatus: 'REJECTED' }, { new: true }).populate({ path: 'vendor', populate: { path: 'user' } });
   if (!product) throw new AppError('Product not found', 404);
+  if (product.vendor && product.vendor.user && product.vendor.user.email) {
+    await sendProductRejectionEmail(product.vendor.user.email, product.name).catch(err => console.error('Email error:', err));
+  }
   return product;
 };
 

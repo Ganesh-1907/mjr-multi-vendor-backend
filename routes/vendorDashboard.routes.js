@@ -14,6 +14,7 @@ router.delete('/products/:productId', vendorController.deleteProduct);
 router.get('/analytics', vendorController.getAnalytics);
 router.get('/reviews', vendorController.getReviews);
 router.get('/orders', vendorController.getOrders);
+router.put('/orders/items/:itemId', vendorController.updateOrderItem);
 router.get('/payouts', vendorController.getPayouts);
 
 router.put('/profile', vendorController.updateProfile);
