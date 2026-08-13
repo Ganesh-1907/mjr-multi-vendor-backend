@@ -5,6 +5,7 @@ const couponService = require('../services/coupon.service');
 const vendorService = require('../services/vendor.service');
 const ContactMessage = require('../models/ContactMessage');
 const ApiResponse = require('../utils/ApiResponse');
+const { sendSupportTicketEmail } = require('../utils/email');
 
 const getHomeData = async (req, res, next) => {
   try {
@@ -74,7 +75,9 @@ const getActiveCoupons = async (req, res, next) => {
 
 const submitContact = async (req, res, next) => {
   try {
-    await ContactMessage.create(req.body);
+    const msg = await ContactMessage.create(req.body);
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@mjrcart.com';
+    await sendSupportTicketEmail(adminEmail, msg).catch(err => console.error('Failed to send support ticket email', err));
     res.json(ApiResponse.success(null, 'Message sent successfully'));
   } catch (error) {
     next(error);

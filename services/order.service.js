@@ -87,6 +87,7 @@ const placeOrder = async (userId, request) => {
     } else {
       discount = coupon.value;
     }
+    if (discount > subtotal) discount = subtotal;
   }
 
   // Calculate totals

@@ -237,7 +237,45 @@ const sendPayoutProcessedEmail = async (email, amount, referenceId) => {
   });
 };
 
+const sendNewVendorApplicationEmail = async (adminEmail, storeName, vendorEmail) => {
+  await sendEmail({
+    to: adminEmail,
+    subject: `New Vendor Application - ${storeName}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a237e;">New Vendor Application</h2>
+        <p>A new vendor has applied to join the marketplace.</p>
+        <p><strong>Store Name:</strong> ${storeName}</p>
+        <p><strong>Vendor Email:</strong> ${vendorEmail}</p>
+        <p>Please log in to the admin dashboard to review and approve/reject their application.</p>
+        <hr>
+        <p style="color: #666;">MJR CART - Admin Notifications</p>
+      </div>
+    `,
+  });
+};
+
+const sendSupportTicketEmail = async (adminEmail, ticket) => {
+  await sendEmail({
+    to: adminEmail,
+    subject: `New Support Ticket: ${ticket.subject}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a237e;">New Contact Form Submission</h2>
+        <p><strong>From:</strong> ${ticket.name} (${ticket.email})</p>
+        <p><strong>Subject:</strong> ${ticket.subject}</p>
+        <div style="background: #f5f5f5; padding: 15px; border-radius: 4px; margin-top: 15px;">
+          <p style="white-space: pre-wrap; margin: 0;">${ticket.message}</p>
+        </div>
+        <hr style="margin-top: 20px;">
+        <p style="color: #666;">MJR CART - Admin Notifications</p>
+      </div>
+    `,
+  });
+};
+
 module.exports = { 
+
   sendOtpEmail, 
   sendVendorApprovalEmail, 
   sendVendorRejectionEmail, 
@@ -247,5 +285,7 @@ module.exports = {
   sendOrderStatusUpdateEmail,
   sendProductApprovalEmail,
   sendProductRejectionEmail,
-  sendPayoutProcessedEmail
+  sendPayoutProcessedEmail,
+  sendNewVendorApplicationEmail,
+  sendSupportTicketEmail
 };

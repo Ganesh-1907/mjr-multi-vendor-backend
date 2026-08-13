@@ -2,7 +2,7 @@ const Role = require('../models/Role');
 const User = require('../models/User');
 const Vendor = require('../models/Vendor');
 const { generateToken } = require('../utils/jwt');
-const { sendOtpEmail } = require('../utils/email');
+const { sendOtpEmail, sendNewVendorApplicationEmail } = require('../utils/email');
 const { generateUniqueSlug } = require('../utils/slugify');
 const ApiResponse = require('../utils/ApiResponse');
 const bcrypt = require('bcryptjs');
@@ -86,6 +86,9 @@ const register = async ({ email, password, firstName, lastName, phone, role, sto
       isVerified: false,
       commissionRate: 10,
     });
+
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@mjrcart.com';
+    await sendNewVendorApplicationEmail(adminEmail, storeName || `${firstName}'s Store`, email).catch(err => console.error('Failed to send vendor application email', err));
   }
 
   const token = generateToken(user._id, role.toUpperCase());
