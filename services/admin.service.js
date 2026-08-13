@@ -45,14 +45,14 @@ const getDashboardStats = async () => {
   // Recent orders
   const recentOrders = await Order.find().sort({ createdAt: -1 }).limit(5).lean();
 
-  // Monthly revenue for chart (last 6 months)
-  const sixMonthsAgo = new Date();
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
-  sixMonthsAgo.setDate(1);
-  sixMonthsAgo.setHours(0, 0, 0, 0);
+  // Monthly revenue for chart (last 12 months)
+  const twelveMonthsAgo = new Date();
+  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11);
+  twelveMonthsAgo.setDate(1);
+  twelveMonthsAgo.setHours(0, 0, 0, 0);
 
   const monthlyRevData = await OrderItem.aggregate([
-    { $match: { createdAt: { $gte: sixMonthsAgo } } },
+    { $match: { createdAt: { $gte: twelveMonthsAgo } } },
     {
       $group: {
         _id: { month: { $month: '$createdAt' }, year: { $year: '$createdAt' } },
@@ -64,14 +64,14 @@ const getDashboardStats = async () => {
 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   
-  // Initialize last 6 months with 0
+  // Initialize last 12 months with 0
   const monthlyRevenue = [];
   let maxMonthlyRev = 0;
-  for (let i = 5; i >= 0; i--) {
+  for (let i = 11; i >= 0; i--) {
     const d = new Date();
     d.setMonth(d.getMonth() - i);
     monthlyRevenue.push({
-      name: monthNames[d.getMonth()],
+      name: `${monthNames[d.getMonth()]} '${d.getFullYear().toString().slice(-2)}`,
       month: d.getMonth() + 1,
       year: d.getFullYear(),
       total: 0,
@@ -161,8 +161,8 @@ const createVendor = async ({ email, storeName, firstName, lastName, phone }, ad
     emailVerified: true,
   });
 
-  const slug = require('slugify');
-  const storeSlug = slug(storeName, { lower: true, strict: true });
+  const { generateUniqueSlug } = require('../utils/slugify');
+  const storeSlug = await generateUniqueSlug(storeName, Vendor);
 
   const vendor = await Vendor.create({
     user: user._id,
@@ -180,7 +180,20 @@ const createVendor = async ({ email, storeName, firstName, lastName, phone }, ad
 };
 
 const getOrders = async () => {
-  return Order.find().populate('user', 'firstName lastName email').sort({ createdAt: -1 }).lean();
+  const orders = await Order.find().populate('user', 'firstName lastName email').sort({ createdAt: -1 }).lean();
+  const orderIds = orders.map((o) => o._id);
+  const items = await OrderItem.find({ order: { $in: orderIds } }).populate('vendor', 'storeName').lean();
+
+  const itemMap = {};
+  items.forEach((item) => {
+    if (!itemMap[item.order.toString()]) itemMap[item.order.toString()] = [];
+    itemMap[item.order.toString()].push(item);
+  });
+
+  return orders.map((order) => ({
+    ...order,
+    items: itemMap[order._id.toString()] || [],
+  }));
 };
 
 const updateOrderStatus = async (orderId, status, description, location) => {

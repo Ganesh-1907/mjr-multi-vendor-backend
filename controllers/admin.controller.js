@@ -119,6 +119,15 @@ const rejectProduct = async (req, res, next) => {
   }
 };
 
+const suspendProduct = async (req, res, next) => {
+  try {
+    const product = await productService.suspendProduct(req.params.productId);
+    res.json(ApiResponse.success(product, 'Product suspended'));
+  } catch (error) {
+    next(error);
+  }
+};
+
 const createProduct = async (req, res, next) => {
   try {
     const Product = require('../models/Product');
@@ -175,6 +184,27 @@ const updateOrderStatus = async (req, res, next) => {
     const { status, description, location } = req.body;
     const order = await adminService.updateOrderStatus(req.params.orderId, status, description, location);
     res.json(ApiResponse.success(order, 'Order status updated'));
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+const updateOrderItem = async (req, res, next) => {
+  try {
+    const { itemId } = req.params;
+    const { fulfillmentStatus, trackingNumber, courier } = req.body;
+    
+    const OrderItem = require('../models/OrderItem');
+    const orderItem = await OrderItem.findById(itemId);
+    if (!orderItem) return res.status(404).json(ApiResponse.error('Order item not found'));
+
+    if (fulfillmentStatus !== undefined) orderItem.fulfillmentStatus = fulfillmentStatus;
+    if (trackingNumber !== undefined) orderItem.trackingNumber = trackingNumber;
+    if (courier !== undefined) orderItem.courier = courier;
+
+    await orderItem.save();
+    res.json(ApiResponse.success(orderItem, 'Order item updated'));
   } catch (error) {
     next(error);
   }
@@ -345,11 +375,34 @@ const deleteContact = async (req, res, next) => {
   }
 };
 
+
+const getPayouts = async (req, res, next) => {
+  try {
+    const payouts = await payoutService.getAllPayouts();
+    res.json(ApiResponse.success(payouts));
+  } catch (error) {
+    next(error);
+  }
+};
+
+const createPayout = async (req, res, next) => {
+  try {
+    const { vendorId, amount, method, reference, notes } = req.body;
+    let payout = await payoutService.createPayout(vendorId, amount, new Date(), new Date(), notes || (method + ' - ' + reference));
+    payout = await payoutService.updatePayoutStatus(payout._id, 'COMPLETED');
+    res.json(ApiResponse.success(payout, 'Settlement created'));
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
+  getPayouts,
+  createPayout,
   getDashboard, getUsers, updateUserStatus,
   getVendors, getPendingVendors, approveVendor, rejectVendor, createVendor,
-  getAllProducts, getPendingProducts, approveProduct, rejectProduct, createProduct, updateProduct, deleteProduct,
-  getOrders, updateOrderStatus,
+  getAllProducts, getPendingProducts, approveProduct, rejectProduct, suspendProduct, createProduct, updateProduct, deleteProduct,
+  getOrders, updateOrderStatus, updateOrderItem,
   getAllCategories, createCategory, updateCategory, deleteCategory,
   getBanners, createBanner, updateBanner, deleteBanner,
   getCoupons, createCoupon, updateCoupon, deleteCoupon,

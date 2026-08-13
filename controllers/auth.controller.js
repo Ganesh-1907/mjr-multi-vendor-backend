@@ -11,29 +11,11 @@ const login = async (req, res, next) => {
   }
 };
 
-const sendOtp = async (req, res, next) => {
-  try {
-    const { email, role } = req.body;
-    await authService.sendSignupOtp(email, role);
-    res.json(ApiResponse.success(null, 'OTP sent successfully'));
-  } catch (error) {
-    next(error);
-  }
-};
 
-const resendOtp = async (req, res, next) => {
-  try {
-    const { email } = req.body;
-    await authService.resendOtp(email);
-    res.json(ApiResponse.success(null, 'OTP resent successfully'));
-  } catch (error) {
-    next(error);
-  }
-};
 
 const register = async (req, res, next) => {
   try {
-    const data = await authService.verifyOtpAndRegister(req.body);
+    const data = await authService.register(req.body);
     res.json(ApiResponse.success(data, 'Registration successful'));
   } catch (error) {
     next(error);
@@ -60,4 +42,4 @@ const resetPassword = async (req, res, next) => {
   }
 };
 
-module.exports = { login, sendOtp, resendOtp, register, forgotPassword, resetPassword };
+module.exports = { login, register, forgotPassword, resetPassword };

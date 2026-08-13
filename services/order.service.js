@@ -39,9 +39,14 @@ const placeOrder = async (userId, request) => {
 
     const product = await Product.findById(variant.product).populate('vendor');
     if (!product) throw new AppError('Product not found');
+    
+    if (product.approvalStatus !== 'APPROVED' || product.availabilityStatus !== 'ACTIVE') {
+      throw new AppError(`Product ${product.name} is currently unavailable.`);
+    }
 
     const lineTotal = variant.price * item.quantity;
-    const commissionAmount = lineTotal * 0.1;
+    const rate = (product.vendor.commissionRate != null ? product.vendor.commissionRate : 10) / 100;
+    const commissionAmount = lineTotal * rate;
     const vendorPayout = lineTotal - commissionAmount;
 
     orderItems.push({
@@ -226,6 +231,7 @@ const cancelOrder = async (orderId, userId) => {
         $inc: { stockQuantity: item.quantity },
       });
     }
+    await Vendor.findByIdAndUpdate(item.vendor, { $inc: { totalSales: -item.totalPrice } });
   }
 
   await OrderTracking.create({
@@ -238,7 +244,12 @@ const cancelOrder = async (orderId, userId) => {
 };
 
 const updateOrderStatus = async (orderId, status, description, location) => {
-  const order = await Order.findById(orderId);
+  const mongoose = require('mongoose');
+  const query = mongoose.Types.ObjectId.isValid(orderId)
+    ? { _id: orderId }
+    : { orderNumber: orderId };
+  
+  const order = await Order.findOne(query);
   if (!order) throw new AppError('Order not found', 404);
 
   const upperStatus = status.toUpperCase();
@@ -249,25 +260,26 @@ const updateOrderStatus = async (orderId, status, description, location) => {
   }
   if (upperStatus === 'CANCELLED') {
     // Restore stock
-    const items = await OrderItem.find({ order: orderId });
+    const items = await OrderItem.find({ order: order._id });
     for (const item of items) {
       if (item.variant) {
         await ProductVariant.findByIdAndUpdate(item.variant, {
           $inc: { stockQuantity: item.quantity },
         });
       }
+      await Vendor.findByIdAndUpdate(item.vendor, { $inc: { totalSales: -item.totalPrice } });
     }
   }
   await order.save();
 
   await OrderTracking.create({
-    order: orderId,
+    order: order._id,
     status: upperStatus,
     description: description || `Order ${upperStatus.toLowerCase()}`,
     location,
   });
 
-  return getOrderById(orderId);
+  return getOrderById(order._id);
 };
 
 const getVendorOrders = async (vendorUserId) => {

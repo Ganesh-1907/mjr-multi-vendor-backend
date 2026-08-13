@@ -19,7 +19,7 @@ const authenticate = async (req, res, next) => {
 
     req.user = {
       userId: decoded.userId,
-      role: decoded.role || user.role.name,
+      role: decoded.role || user.role?.name,
     };
 
     next();
@@ -44,7 +44,7 @@ const optionalAuth = async (req, res, next) => {
       if (user && user.isActive) {
         req.user = {
           userId: decoded.userId,
-          role: decoded.role || user.role.name,
+          role: decoded.role || user.role?.name,
         };
       }
     }

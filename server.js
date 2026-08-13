@@ -22,7 +22,6 @@ const vendorDashboardRoutes = require('./routes/vendorDashboard.routes');
 const adminRoutes = require('./routes/admin.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const supportRoutes = require('./routes/support.routes');
-const notificationRoutes = require('./routes/notification.routes');
 const customerRoutes = require('./routes/customer.routes');
 const bannerRoutes = require('./routes/banner.routes');
 const uploadRoutes = require('./routes/upload.routes');
@@ -61,7 +60,6 @@ app.use('/api/vendor', vendorDashboardRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/support', supportRoutes);
-app.use('/api/notifications', notificationRoutes);
 app.use('/api/customer', customerRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/upload', uploadRoutes);
@@ -72,7 +70,7 @@ app.use(errorHandler);
 // Start server
 const start = async () => {
   await connectDB();
-  await seedData();
+  // await seedData(); // Disabled so it doesn't automatically populate dummy data
 
   app.listen(PORT, () => {
     console.log(`Node backend running on http://localhost:${PORT}`);

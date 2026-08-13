@@ -1,24 +1,51 @@
 const nodemailer = require('nodemailer');
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+let transporter;
+
+const initializeTransporter = async () => {
+  if (process.env.SMTP_PASS) {
+    transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_PORT === '465',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+  } else {
+    // Fallback to ethereal email for dev/staging
+    const testAccount = await nodemailer.createTestAccount();
+    transporter = nodemailer.createTransport({
+      host: 'smtp.ethereal.email',
+      port: 587,
+      secure: false,
+      auth: {
+        user: testAccount.user,
+        pass: testAccount.pass,
+      },
+    });
+    console.log('[EMAIL] Using Ethereal test SMTP account');
+  }
+};
+
+initializeTransporter();
 
 const sendEmail = async ({ to, subject, html }) => {
   try {
-    await transporter.sendMail({
-      from: `"MJR CART" <${process.env.EMAIL_FROM}>`,
+    // Wait for transporter to initialize if it hasn't already
+    if (!transporter) await initializeTransporter();
+    
+    const info = await transporter.sendMail({
+      from: `"MJR CART" <${process.env.EMAIL_FROM || 'noreply@mjrcart.com'}>`,
       to,
       subject,
       html,
     });
     console.log(`Email sent to ${to}: ${subject}`);
+    if (nodemailer.getTestMessageUrl(info)) {
+      console.log(`[EMAIL PREVIEW URL]: ${nodemailer.getTestMessageUrl(info)}`);
+    }
   } catch (error) {
     console.error('Email send error:', error.message);
   }

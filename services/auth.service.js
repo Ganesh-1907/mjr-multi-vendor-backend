@@ -53,71 +53,22 @@ const login = async (email, password, role) => {
   };
 };
 
-const sendSignupOtp = async (email, role) => {
+const register = async ({ email, password, firstName, lastName, phone, role, storeName }) => {
   const existingUser = await User.findOne({ email });
-  if (existingUser && existingUser.emailVerified) throw new AppError('Email already registered');
-
-  const otp = generateOtp();
-
-  if (existingUser) {
-    existingUser.verificationOtp = otp;
-    existingUser.otpExpiry = new Date(Date.now() + OTP_EXPIRY);
-    await existingUser.save();
-  } else {
-    const roleDoc = await Role.findOne({ name: role.toUpperCase() });
-    if (!roleDoc) throw new AppError('Invalid role');
-
-    await User.create({
-      email,
-      passwordHash: 'temp-password',
-      firstName: 'Pending',
-      lastName: 'User',
-      role: roleDoc._id,
-      verificationOtp: otp,
-      otpExpiry: new Date(Date.now() + OTP_EXPIRY),
-    });
-  }
-
-  await sendOtpEmail(email, otp, 'signup');
-};
-
-const resendOtp = async (email) => {
-  const user = await User.findOne({ email });
-  if (!user) throw new AppError('Email not found');
-
-  if (user.emailVerified) throw new AppError('Email already verified');
-
-  const otp = generateOtp();
-  user.verificationOtp = otp;
-  user.otpExpiry = new Date(Date.now() + OTP_EXPIRY);
-  await user.save();
-
-  await sendOtpEmail(email, otp, 'signup');
-};
-
-const verifyOtpAndRegister = async ({ email, password, firstName, lastName, phone, role, otp, storeName }) => {
-  const user = await User.findOne({ email }).populate('role');
-  if (!user) throw new AppError('Email not found. Please request OTP first.');
-
-  if (user.emailVerified) throw new AppError('Email already registered');
-
-  if (!user.verificationOtp || user.verificationOtp !== otp) throw new AppError('Invalid OTP');
-  if (user.otpExpiry && user.otpExpiry < new Date()) throw new AppError('OTP expired. Please request a new one.');
+  if (existingUser) throw new AppError('Email already registered');
 
   const roleDoc = await Role.findOne({ name: role.toUpperCase() });
   if (!roleDoc) throw new AppError('Invalid role');
 
-  const passwordHash = await bcrypt.hash(password, 12);
-
-  user.passwordHash = passwordHash;
-  user.firstName = firstName;
-  user.lastName = lastName;
-  user.phone = phone;
-  user.role = roleDoc._id;
-  user.emailVerified = true;
-  user.verificationOtp = undefined;
-  user.otpExpiry = undefined;
-  await user.save();
+  const user = await User.create({
+    email,
+    passwordHash: password,
+    firstName,
+    lastName,
+    phone,
+    role: roleDoc._id,
+    emailVerified: true,
+  });
 
   // Create vendor profile if role is VENDOR
   if (role.toUpperCase() === 'VENDOR') {
@@ -158,6 +109,7 @@ const sendForgotPasswordOtp = async (email) => {
   user.otpExpiry = new Date(Date.now() + OTP_EXPIRY);
   await user.save();
 
+  console.log(`[DEV ONLY] OTP for ${email} is: ${otp}`);
   await sendOtpEmail(email, otp, 'forgot');
 };
 
@@ -168,7 +120,7 @@ const resetPassword = async (email, otp, newPassword) => {
   if (!user.verificationOtp || user.verificationOtp !== otp) throw new AppError('Invalid OTP');
   if (user.otpExpiry && user.otpExpiry < new Date()) throw new AppError('OTP expired. Please request a new one.');
 
-  user.passwordHash = await bcrypt.hash(newPassword, 12);
+  user.passwordHash = newPassword;
   user.verificationOtp = undefined;
   user.otpExpiry = undefined;
   await user.save();
@@ -176,9 +128,7 @@ const resetPassword = async (email, otp, newPassword) => {
 
 module.exports = {
   login,
-  sendSignupOtp,
-  resendOtp,
-  verifyOtpAndRegister,
+  register,
   sendForgotPasswordOtp,
   resetPassword,
   AppError,

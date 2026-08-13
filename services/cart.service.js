@@ -34,8 +34,13 @@ const getCart = async (userId) => {
 };
 
 const addToCart = async (userId, { productId, variantId, quantity = 1 }) => {
-  const variant = await ProductVariant.findById(variantId);
+  const variant = await ProductVariant.findById(variantId).populate('product');
   if (!variant) throw new AppError('Variant not found');
+  if (!variant.product) throw new AppError('Product not found');
+  
+  if (variant.product.approvalStatus !== 'APPROVED' || variant.product.availabilityStatus !== 'ACTIVE') {
+    throw new AppError('Product is currently unavailable');
+  }
 
   if (variant.stockQuantity < quantity) throw new AppError('Insufficient stock');
 

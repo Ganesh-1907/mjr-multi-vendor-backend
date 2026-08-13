@@ -7,11 +7,14 @@ const getProfile = async (userId) => {
   if (!user) throw new AppError('User not found', 404);
 
   let vendor = null;
-  if (user.role.name === 'VENDOR') {
+  if (user.role?.name === 'VENDOR') {
     vendor = await Vendor.findOne({ user: userId }).lean();
   }
 
-  return { ...user, vendor };
+  const Address = require('../models/Address');
+  const addresses = await Address.find({ user: userId }).lean();
+
+  return { ...user, vendor, addresses };
 };
 
 const updateProfile = async (userId, updates) => {

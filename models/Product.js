@@ -18,6 +18,7 @@ const productSchema = new mongoose.Schema(
     description: { type: String },
     rating: { type: Number, default: 0, min: 0, max: 5 },
     totalReviews: { type: Number, default: 0 },
+    basePrice: { type: Number, default: 0 },
     approvalStatus: {
       type: String,
       enum: ['DRAFT', 'PENDING_REVIEW', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'ARCHIVED'],
@@ -38,7 +39,7 @@ const productSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-productSchema.index({ slug: 1 });
+
 productSchema.index({ approvalStatus: 1, availabilityStatus: 1, isFeatured: 1 });
 productSchema.index({ approvalStatus: 1, availabilityStatus: 1, isTrending: 1 });
 productSchema.index({ category: 1, approvalStatus: 1, availabilityStatus: 1 });

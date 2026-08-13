@@ -28,10 +28,12 @@ router.put('/products/:productId', adminController.updateProduct);
 router.delete('/products/:productId', adminController.deleteProduct);
 router.put('/products/:productId/approve', adminController.approveProduct);
 router.put('/products/:productId/reject', adminController.rejectProduct);
+router.put('/products/:productId/suspend', adminController.suspendProduct);
 
 // Orders
 router.get('/orders', adminController.getOrders);
 router.put('/orders/:orderId/status', adminController.updateOrderStatus);
+router.put('/orders/items/:itemId', adminController.updateOrderItem);
 
 // Categories
 router.get('/categories', adminController.getAllCategories);
@@ -59,5 +61,9 @@ router.put('/tickets/:ticketId/status', adminController.updateTicketStatus);
 // Contacts
 router.get('/contacts', adminController.getContacts);
 router.delete('/contacts/:contactId', adminController.deleteContact);
+
+// Payouts
+router.get('/payouts', adminController.getPayouts);
+router.post('/payouts', adminController.createPayout);
 
 module.exports = router;

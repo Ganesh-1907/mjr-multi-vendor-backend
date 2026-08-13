@@ -7,6 +7,7 @@ const Category = require('../models/Category');
 const OrderItem = require('../models/OrderItem');
 const { generateUniqueSlug } = require('../utils/slugify');
 const { AppError } = require('./auth.service');
+const { nanoid } = require('nanoid');
 
 const getProductBySlug = async (slug) => {
   const product = await Product.findOne({ slug, approvalStatus: 'APPROVED', availabilityStatus: 'ACTIVE' })
@@ -69,8 +70,8 @@ const getProducts = async (filters = {}) => {
   let sortQuery = { createdAt: -1 };
   switch (sort) {
     case 'newest': sortQuery = { createdAt: -1 }; break;
-    case 'price_asc': sortQuery = { 'price': 1 }; break;
-    case 'price_desc': sortQuery = { 'price': -1 }; break;
+    case 'price_asc': sortQuery = { basePrice: 1 }; break;
+    case 'price_desc': sortQuery = { basePrice: -1 }; break;
     case 'rating': sortQuery = { rating: -1 }; break;
     case 'popular': sortQuery = { totalReviews: -1 }; break;
     case 'name_asc': sortQuery = { name: 1 }; break;
@@ -241,6 +242,7 @@ const createProduct = async (vendorUserId, request) => {
     isTrending: false,
     tags: request.tags || [],
     specifications: request.specifications || {},
+    basePrice: request.variants?.length ? Math.min(...request.variants.map(v => v.price || 0)) : 0,
   });
 
   // Create variants
@@ -293,14 +295,15 @@ const updateProduct = async (productId, vendorUserId, request) => {
   if (request.description !== undefined) product.description = request.description;
   if (request.tags) product.tags = request.tags;
   if (request.specifications) product.specifications = request.specifications;
+  
+  if (request.variants && request.variants.length > 0) {
+    product.basePrice = Math.min(...request.variants.map(v => v.price || 0));
+  }
 
   if (request.approvalStatus) product.approvalStatus = request.approvalStatus;
   if (request.availabilityStatus) product.availabilityStatus = request.availabilityStatus;
 
-  const isFullUpdate = request.name || request.shortDescription || request.description || request.categoryId || request.variants;
-  if (isFullUpdate && (product.approvalStatus === 'APPROVED' || product.approvalStatus === 'REJECTED')) {
-    product.approvalStatus = 'PENDING_REVIEW';
-  }
+  // Note: We no longer revert to PENDING_REVIEW on updates so vendors can freely manage stock and details without losing approval.
 
   await product.save();
 
@@ -359,7 +362,7 @@ const deleteProduct = async (productId, vendorUserId) => {
 };
 
 const approveProduct = async (productId) => {
-  const product = await Product.findByIdAndUpdate(productId, { approvalStatus: 'APPROVED' }, { new: true });
+  const product = await Product.findByIdAndUpdate(productId, { approvalStatus: 'APPROVED', availabilityStatus: 'ACTIVE' }, { new: true });
   if (!product) throw new AppError('Product not found', 404);
   return product;
 };
@@ -370,8 +373,15 @@ const rejectProduct = async (productId) => {
   return product;
 };
 
+const suspendProduct = async (productId) => {
+  const product = await Product.findByIdAndUpdate(productId, { approvalStatus: 'APPROVED', availabilityStatus: 'INACTIVE' }, { new: true });
+  if (!product) throw new AppError('Product not found', 404);
+  return product;
+};
+
 const getPendingProducts = async () => {
   const products = await Product.find({ approvalStatus: { $in: ['PENDING_REVIEW', 'UNDER_REVIEW'] } })
+    .populate('vendor', 'storeName storeSlug')
     .sort({ createdAt: -1 })
     .lean();
 
@@ -394,7 +404,8 @@ const getPendingProducts = async () => {
   return products.map((p) => ({
     ...p,
     id: p._id,
-    vendorId: p.vendor,
+    vendorId: p.vendor?._id || p.vendor,
+    vendor: p.vendor,
     categoryId: p.category,
     variants: variantMap[p._id.toString()] || [],
     images: imageMap[p._id.toString()] || []
@@ -403,6 +414,7 @@ const getPendingProducts = async () => {
 
 const getAllProducts = async () => {
   const products = await Product.find({ approvalStatus: { $ne: 'DRAFT' } })
+    .populate('vendor', 'storeName storeSlug')
     .sort({ createdAt: -1 })
     .lean();
 
@@ -425,7 +437,8 @@ const getAllProducts = async () => {
   return products.map((p) => ({
     ...p,
     id: p._id,
-    vendorId: p.vendor,
+    vendorId: p.vendor?._id || p.vendor,
+    vendor: p.vendor,
     categoryId: p.category,
     variants: variantMap[p._id.toString()] || [],
     images: imageMap[p._id.toString()] || []
@@ -456,6 +469,8 @@ const getVendorProducts = async (vendorUserId) => {
 
   return products.map((p) => ({
     ...p,
+    vendorId: p.vendor,
+    categoryId: p.category?._id || p.category,
     variants: variantMap[p._id.toString()] || [],
     image: imageMap[p._id.toString()] || null,
   }));
@@ -472,6 +487,7 @@ module.exports = {
   deleteProduct,
   approveProduct,
   rejectProduct,
+  suspendProduct,
   getPendingProducts,
   getAllProducts,
   getVendorProducts,
