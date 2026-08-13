@@ -34,7 +34,7 @@ const login = async (email, password, role) => {
   // For vendor role, check if vendor is verified
   if (userRole === 'VENDOR') {
     const vendor = await Vendor.findOne({ user: user._id });
-    if (vendor && !vendor.isVerified) throw new AppError('VENDOR_PENDING_APPROVAL');
+    if (vendor && !vendor.isVerified) throw new AppError('Your vendor account is pending approval by an admin.');
   }
 
   user.lastLogin = new Date();
@@ -56,6 +56,7 @@ const login = async (email, password, role) => {
 const register = async ({ email, password, firstName, lastName, phone, role, storeName }) => {
   const existingUser = await User.findOne({ email });
   if (existingUser) throw new AppError('Email already registered');
+  if (!password || password.length < 6) throw new AppError('Password must be at least 6 characters long');
 
   const roleDoc = await Role.findOne({ name: role.toUpperCase() });
   if (!roleDoc) throw new AppError('Invalid role');
