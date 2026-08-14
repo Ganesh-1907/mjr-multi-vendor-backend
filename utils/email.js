@@ -12,6 +12,9 @@ const initializeTransporter = async () => {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
     });
   } else {
     // Fallback to ethereal email for dev/staging
@@ -32,33 +35,20 @@ const initializeTransporter = async () => {
 initializeTransporter();
 
 const sendEmail = async ({ to, subject, html }) => {
-  try {
-    let activeTransporter = transporter;
-    
-    if (to.endsWith('@yopmail.com')) {
-      activeTransporter = nodemailer.createTransport({
-        host: 'smtp.yopmail.com',
-        port: 25,
-        secure: false,
-        tls: { rejectUnauthorized: false }
-      });
-    } else if (!activeTransporter) {
-      await initializeTransporter();
-      activeTransporter = transporter;
-    }
-    
-    const info = await activeTransporter.sendMail({
-      from: `"MJR CART" <${process.env.EMAIL_FROM || 'noreply@mjrcart.com'}>`,
-      to,
-      subject,
-      html,
-    });
-    console.log(`Email sent to ${to}: ${subject}`);
-    if (nodemailer.getTestMessageUrl(info)) {
-      console.log(`[EMAIL PREVIEW URL]: ${nodemailer.getTestMessageUrl(info)}`);
-    }
-  } catch (error) {
-    console.error('Email send error:', error.message);
+  if (!transporter) {
+    await initializeTransporter();
+  }
+
+  const info = await transporter.sendMail({
+    from: `"MJR CART" <${process.env.EMAIL_FROM || 'noreply@mjrcart.com'}>`,
+    to,
+    subject,
+    html,
+  });
+
+  console.log(`Email sent to ${to}: ${subject}`);
+  if (nodemailer.getTestMessageUrl(info)) {
+    console.log(`[EMAIL PREVIEW URL]: ${nodemailer.getTestMessageUrl(info)}`);
   }
 };
 
