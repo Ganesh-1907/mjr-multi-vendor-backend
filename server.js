@@ -29,9 +29,15 @@ const uploadRoutes = require('./routes/upload.routes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const corsOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',')
+      .map((origin) => origin.trim().replace(/\/+$/, ''))
+      .filter(Boolean)
+  : '*';
+
 // Middleware
 app.use(cors({
-  origin: process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : '*',
+  origin: corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
 }));
