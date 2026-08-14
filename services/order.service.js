@@ -47,8 +47,6 @@ const placeOrder = async (userId, request) => {
 
     const lineTotal = variant.price * item.quantity;
     const rate = (product.vendor.commissionRate != null ? product.vendor.commissionRate : 10) / 100;
-    const commissionAmount = lineTotal * rate;
-    const vendorPayout = lineTotal - commissionAmount;
 
     orderItems.push({
       product: product._id,
@@ -61,8 +59,7 @@ const placeOrder = async (userId, request) => {
       quantity: item.quantity,
       unitPrice: variant.price,
       totalPrice: lineTotal,
-      vendorPayout,
-      commissionAmount,
+      _rate: rate,
     });
 
     subtotal += lineTotal;
@@ -88,6 +85,28 @@ const placeOrder = async (userId, request) => {
       discount = coupon.value;
     }
     if (discount > subtotal) discount = subtotal;
+  }
+
+  // Distribute discount to items & calculate payout
+  let remainingDiscount = discount;
+  for (let i = 0; i < orderItems.length; i++) {
+    const item = orderItems[i];
+    let itemDiscount = 0;
+    
+    if (subtotal > 0 && discount > 0) {
+      if (i === orderItems.length - 1) {
+        itemDiscount = remainingDiscount;
+      } else {
+        itemDiscount = Math.round((item.totalPrice / subtotal) * discount);
+        remainingDiscount -= itemDiscount;
+      }
+    }
+    
+    const discountedTotal = item.totalPrice - itemDiscount;
+    item.commissionAmount = discountedTotal * item._rate;
+    item.vendorPayout = discountedTotal - item.commissionAmount;
+    item.discountAmount = itemDiscount;
+    delete item._rate;
   }
 
   // Calculate totals
@@ -158,7 +177,8 @@ const placeOrder = async (userId, request) => {
 
   // Update vendor totalSales
   for (const item of orderItems) {
-    await Vendor.findByIdAndUpdate(item.vendor, { $inc: { totalSales: item.totalPrice } });
+    const finalSaleAmount = item.totalPrice - (item.discountAmount || 0);
+    await Vendor.findByIdAndUpdate(item.vendor, { $inc: { totalSales: finalSaleAmount } });
   }
 
   // If address doesn't exist for user, save it
@@ -327,6 +347,7 @@ const getVendorOrders = async (vendorUserId) => {
     const vendorItems = itemMap[order._id.toString()] || [];
     // Calculate vendor-specific subtotal
     const vendorTotal = vendorItems.reduce((sum, item) => sum + item.totalPrice, 0);
+    const vendorDiscount = vendorItems.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
     const vendorPayout = vendorItems.reduce((sum, item) => sum + item.vendorPayout, 0);
     
     // Overall vendor order status based on item statuses
@@ -356,6 +377,7 @@ const getVendorOrders = async (vendorUserId) => {
       
       status: vendorOrderStatus,
       vendorTotal,
+      vendorDiscount,
       vendorPayout,
       items: vendorItems
     };
