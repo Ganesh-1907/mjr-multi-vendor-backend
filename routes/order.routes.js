@@ -7,6 +7,7 @@ router.post('/', authenticate, orderController.placeOrder);
 router.get('/', authenticate, orderController.getUserOrders);
 router.get('/:orderId', authenticate, orderController.getOrderById);
 router.post('/:orderId/cancel', authenticate, orderController.cancelOrder);
+router.post('/:orderId/pay', authenticate, orderController.payOrder);
 router.get('/:orderId/tracking', authenticate, orderController.getOrderTracking);
 
 module.exports = router;

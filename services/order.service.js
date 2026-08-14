@@ -366,6 +366,31 @@ const getOrderTracking = async (orderId) => {
   return OrderTracking.find({ order: orderId }).sort({ createdAt: -1 });
 };
 
+const payOrder = async (orderId, userId, paymentDetails) => {
+  const order = await Order.findOne({ _id: orderId, user: userId });
+  if (!order) throw new AppError('Order not found', 404);
+  if (order.paymentStatus === 'COMPLETED') throw new AppError('Order already paid');
+
+  const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = paymentDetails;
+  
+  order.paymentStatus = 'COMPLETED';
+  order.razorpayOrderId = razorpayOrderId || order.razorpayOrderId;
+  order.razorpayPaymentId = razorpayPaymentId;
+  order.razorpaySignature = razorpaySignature;
+  
+  if (order.status === 'PENDING') {
+    order.status = 'CONFIRMED';
+    await OrderTracking.create({
+      order: order._id,
+      status: 'CONFIRMED',
+      description: 'Payment successful, order confirmed',
+    });
+  }
+  
+  await order.save();
+  return getOrderById(order._id);
+};
+
 module.exports = {
   placeOrder,
   getOrderById,
@@ -374,4 +399,5 @@ module.exports = {
   updateOrderStatus,
   getVendorOrders,
   getOrderTracking,
+  payOrder,
 };

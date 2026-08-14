@@ -50,4 +50,13 @@ const getOrderTracking = async (req, res, next) => {
   }
 };
 
-module.exports = { placeOrder, getUserOrders, getOrderById, cancelOrder, getOrderTracking };
+const payOrder = async (req, res, next) => {
+  try {
+    const order = await orderService.payOrder(req.params.orderId, req.user.userId, req.body);
+    res.json(ApiResponse.success(order, 'Payment successful'));
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { placeOrder, getUserOrders, getOrderById, cancelOrder, getOrderTracking, payOrder };
