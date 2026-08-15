@@ -1,16 +1,20 @@
 const nodemailer = require('nodemailer');
 
+const SMTP_USER = process.env.EMAIL_USER || process.env.SMTP_USER;
+const SMTP_PASS = process.env.EMAIL_PASSWORD || process.env.SMTP_PASS;
+const EMAIL_FROM = process.env.EMAIL_FROM || SMTP_USER || 'noreply@mjrcart.com';
+
 let transporter;
 
 const initializeTransporter = async () => {
-  if (process.env.SMTP_PASS) {
+  if (SMTP_PASS) {
     transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587'),
       secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user: SMTP_USER,
+        pass: SMTP_PASS,
       },
       connectionTimeout: 10000,
       greetingTimeout: 10000,
@@ -40,7 +44,7 @@ const sendEmail = async ({ to, subject, html }) => {
   }
 
   const info = await transporter.sendMail({
-    from: `"MJR CART" <${process.env.EMAIL_FROM || 'noreply@mjrcart.com'}>`,
+    from: `"MJR CART" <${EMAIL_FROM}>`,
     to,
     subject,
     html,
