@@ -27,6 +27,7 @@ const orderItemSchema = new mongoose.Schema(
     quantity: { type: Number, required: true, min: 1 },
     unitPrice: { type: Number, required: true, min: 0 },
     totalPrice: { type: Number, required: true, min: 0 },
+    discountAmount: { type: Number, default: 0, min: 0 },
     vendorPayout: { type: Number, min: 0 },
     commissionAmount: { type: Number, min: 0 },
     fulfillmentStatus: {

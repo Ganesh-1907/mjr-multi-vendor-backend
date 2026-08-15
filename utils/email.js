@@ -39,9 +39,10 @@ const initializeTransporter = async () => {
 initializeTransporter();
 
 const sendEmail = async ({ to, subject, html }) => {
-  if (!transporter) {
-    await initializeTransporter();
-  }
+  try {
+    if (!transporter) {
+      await initializeTransporter();
+    }
 
   const info = await transporter.sendMail({
     from: `"MJR CART" <${EMAIL_FROM}>`,
@@ -50,9 +51,12 @@ const sendEmail = async ({ to, subject, html }) => {
     html,
   });
 
-  console.log(`Email sent to ${to}: ${subject}`);
-  if (nodemailer.getTestMessageUrl(info)) {
-    console.log(`[EMAIL PREVIEW URL]: ${nodemailer.getTestMessageUrl(info)}`);
+    console.log(`Email sent to ${to}: ${subject}`);
+    if (nodemailer.getTestMessageUrl(info)) {
+      console.log(`[EMAIL PREVIEW URL]: ${nodemailer.getTestMessageUrl(info)}`);
+    }
+  } catch (error) {
+    console.error(`[EMAIL ERROR] Failed to send email to ${to}:`, error.message);
   }
 };
 
